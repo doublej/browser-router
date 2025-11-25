@@ -3,6 +3,7 @@ import CoreServices
 import SwiftUI
 import UserNotifications
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem: NSStatusItem!
     private var preferencesWindow: NSWindow?
@@ -13,6 +14,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let browserDetector = BrowserDetector()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Debug bundle information
+        if let bundleID = Bundle.main.bundleIdentifier {
+            print("✓ Bundle ID: \(bundleID)")
+            print("✓ Bundle Path: \(Bundle.main.bundlePath)")
+            print("✓ Bundle URL: \(Bundle.main.bundleURL)")
+        } else {
+            print("⚠️ WARNING: Bundle identifier is nil!")
+        }
+        
         setupStatusItem()
         registerURLHandler()
         requestNotificationPermission()
@@ -84,12 +94,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(NSMenuItem.separator())
 
         menu.addItem(NSMenuItem(
-            title: "About Browser Router",
-            action: #selector(openAbout),
-            keyEquivalent: ""
-        ))
-
-        menu.addItem(NSMenuItem(
             title: "Quit Browser Router",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
@@ -119,11 +123,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.menu = buildMenu()
     }
 
-    @objc private func openAbout() {
-        guard let url = URL(string: "https://www.jurrejan.com") else { return }
-        NSWorkspace.shared.open(url)
-    }
-
     @objc private func toggleEnabled() {
         ruleStore.toggleEnabled()
         statusItem.menu = buildMenu()
@@ -136,12 +135,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 .environmentObject(browserDetector)
 
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+                contentRect: NSRect(x: 0, y: 0, width: 700, height: 550),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Browser Router Preferences"
+            window.title = "Browser Router"
             window.center()
             window.contentView = NSHostingView(rootView: contentView)
             window.isReleasedWhenClosed = false
@@ -159,7 +158,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @objc private func setAsDefaultBrowser() {
-        let bundleID = Bundle.main.bundleIdentifier ?? "com.browserrouter.app"
+        guard let bundleID = Bundle.main.bundleIdentifier else {
+            let alert = NSAlert()
+            alert.messageText = "Bundle Identifier Error"
+            alert.informativeText = "Cannot determine app bundle identifier. Make sure the app is properly built and installed."
+            alert.alertStyle = .critical
+            alert.runModal()
+            return
+        }
 
         let infoAlert = NSAlert()
         infoAlert.messageText = "Select Browser Router"
@@ -169,8 +175,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard infoAlert.runModal() == .alertFirstButtonReturn else { return }
 
-        LSSetDefaultHandlerForURLScheme("http" as CFString, bundleID as CFString)
-        LSSetDefaultHandlerForURLScheme("https" as CFString, bundleID as CFString)
+        let httpResult = LSSetDefaultHandlerForURLScheme("http" as CFString, bundleID as CFString)
+        let httpsResult = LSSetDefaultHandlerForURLScheme("https" as CFString, bundleID as CFString)
+        
+        if httpResult != noErr || httpsResult != noErr {
+            let alert = NSAlert()
+            alert.messageText = "Registration Error"
+            alert.informativeText = "Failed to register as default browser. The app may need to be built and run from the Applications folder.\n\nError codes: HTTP=\(httpResult), HTTPS=\(httpsResult)"
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.browserDetector.refresh()

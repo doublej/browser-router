@@ -3,3 +3,4 @@
 *.xcodeproj/
 xcuserdata/
 Browser Router.app/
+BrowserRouter/.swiftpm/

@@ -3,10 +3,9 @@ import SwiftUI
 struct RuleListView: View {
     @EnvironmentObject var ruleStore: RuleStore
     @EnvironmentObject var browserDetector: BrowserDetector
-    @State private var selectedRule: RoutingRule?
     @State private var editingRule: RoutingRule?
     @State private var isEditing = false
-    @State private var testURL = ""
+    @State private var testURL = "https://"
     @State private var testResult: String?
 
     var body: some View {
@@ -32,74 +31,80 @@ struct RuleListView: View {
                 ruleListContent
             }
         }
+        .frame(minWidth: 650)
     }
 
     private var ruleListContent: some View {
         VStack(spacing: 16) {
-            List(selection: $selectedRule) {
-                ForEach(ruleStore.rules) { rule in
-                    RuleRowView(rule: rule, browserName: browserName(for: rule.browserID))
-                        .tag(rule)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedRule = rule
+            // Rules list
+            ScrollView {
+                GlassEffectContainer {
+                    LazyVStack(spacing: 10) {
+                        ForEach(ruleStore.rules) { rule in
+                            RuleRowView(
+                                rule: rule,
+                                browser: browserDetector.browser(for: rule.browserID),
+                                onToggle: { toggleRule(rule) },
+                                onEdit: { editRule(rule) },
+                                onDelete: { deleteRule(rule) }
+                            )
                         }
-                        .onTapGesture(count: 2) {
-                            editingRule = rule
+
+                        // Add new rule placeholder
+                        AddRulePlaceholder {
+                            editingRule = nil
                             isEditing = true
                         }
-                }
-                .onMove { source, destination in
-                    ruleStore.move(from: source, to: destination)
+                    }
+                    .padding(8)
                 }
             }
-            .listStyle(.inset)
+            .scrollClipDisabled()
 
-            HStack {
-                TextField("Test URL", text: $testURL)
-                    .textFieldStyle(.roundedBorder)
+            Divider()
+
+            // Test URL bar
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "link")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 12))
+
+                    TextField("https://example.com", text: $testURL)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .rect(cornerRadius: 10))
 
                 Button("Test") { testURLMatch() }
-                    .disabled(testURL.isEmpty)
+                    .disabled(testURL.isEmpty || testURL == "https://")
 
                 if let result = testResult {
                     Text(result)
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
                 }
 
                 Spacer()
-
-                Button(action: { editingRule = nil; isEditing = true }) {
-                    Image(systemName: "plus")
-                }
-
-                Button(action: editSelected) {
-                    Image(systemName: "pencil")
-                }
-                .disabled(selectedRule == nil)
-
-                Button(action: deleteSelected) {
-                    Image(systemName: "trash")
-                }
-                .disabled(selectedRule == nil)
             }
         }
     }
 
-    private func browserName(for id: String) -> String {
-        browserDetector.browser(for: id)?.name ?? id
+    private func toggleRule(_ rule: RoutingRule) {
+        var updated = rule
+        updated.enabled.toggle()
+        ruleStore.update(updated)
     }
 
-    private func editSelected() {
-        editingRule = selectedRule
+    private func editRule(_ rule: RoutingRule) {
+        editingRule = rule
         isEditing = true
     }
 
-    private func deleteSelected() {
-        guard let rule = selectedRule else { return }
+    private func deleteRule(_ rule: RoutingRule) {
         ruleStore.delete(rule)
-        selectedRule = nil
     }
 
     private func testURLMatch() {
@@ -108,36 +113,136 @@ struct RuleListView: View {
             return
         }
         if let match = URLMatcher.findMatchingRule(url: url, rules: ruleStore.rules) {
-            testResult = "→ \(browserName(for: match.browserID))"
+            let browserName = browserDetector.browser(for: match.browserID)?.name ?? match.browserID
+            testResult = "→ \(browserName)"
         } else {
             testResult = "→ System default"
         }
     }
 }
 
+// MARK: - Rule Row
+
 struct RuleRowView: View {
     let rule: RoutingRule
-    let browserName: String
+    let browser: Browser?
+    let onToggle: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovered = false
 
     var body: some View {
-        HStack {
-            Image(systemName: rule.enabled ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(rule.enabled ? .green : .secondary)
+        HStack(spacing: 12) {
+            // Enable/disable toggle
+            Button(action: onToggle) {
+                Image(systemName: rule.enabled ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 18))
+                    .foregroundColor(rule.enabled ? .green : .secondary.opacity(0.5))
+            }
+            .buttonStyle(.plain)
 
-            VStack(alignment: .leading) {
-                Text(rule.pattern)
-                    .font(.body)
-                Text(rule.matchType.displayName)
-                    .font(.caption)
+            // Browser icon
+            if let icon = browser?.icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 24, height: 24)
+            } else {
+                Image(systemName: "globe")
+                    .frame(width: 24, height: 24)
                     .foregroundColor(.secondary)
+            }
+
+            // Rule info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(rule.pattern)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(rule.enabled ? .primary : .secondary)
+
+                HStack(spacing: 6) {
+                    Text(rule.matchType.displayName)
+                        .font(.system(size: 10, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.15))
+                        .cornerRadius(4)
+
+                    Text("→ \(browser?.name ?? "Unknown")")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
             }
 
             Spacer()
 
-            Text(browserName)
-                .foregroundColor(.secondary)
+            // Actions (visible on hover)
+            if isHovered {
+                HStack(spacing: 8) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12))
+                            .foregroundColor(.red.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .transition(.opacity)
+            }
         }
-        .padding(.vertical, 4)
-        .contentShape(Rectangle())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .contentShape(.rect(cornerRadius: 12))
+        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Add Rule Placeholder
+
+struct AddRulePlaceholder: View {
+    let onAdd: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onAdd) {
+            HStack {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundColor(isHovered ? .accentColor : .secondary.opacity(0.5))
+
+                    Text("Add Rule")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(isHovered ? .accentColor : .secondary.opacity(0.6))
+                }
+                Spacer()
+            }
+            .padding(.vertical, 24)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(
+                        style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                    )
+                    .foregroundColor(isHovered ? .accentColor.opacity(0.5) : .secondary.opacity(0.2))
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }

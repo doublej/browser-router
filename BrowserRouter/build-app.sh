@@ -1,21 +1,34 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="Browser Router"
 BUNDLE_ID="com.browserrouter.app"
 BUILD_DIR=".build/release"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 RESOURCES_DIR="Resources"
 INFO_PLIST="$RESOURCES_DIR/Info.plist"
+BUILD_NUMBER_FILE="$SCRIPT_DIR/.build-number"
 
-# Git-based versioning
+# Version from git tags
 get_version() {
     local tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
     echo "${tag#v}"
 }
 
+# Tracked build number (incremented each build)
 get_build_number() {
-    git rev-list --count HEAD 2>/dev/null || echo "1"
+    if [ ! -f "$BUILD_NUMBER_FILE" ]; then
+        echo "1" > "$BUILD_NUMBER_FILE"
+    fi
+    cat "$BUILD_NUMBER_FILE" | tr -d '[:space:]'
+}
+
+increment_build_number() {
+    local current=$(get_build_number)
+    local new=$((current + 1))
+    echo "$new" > "$BUILD_NUMBER_FILE"
+    echo "$new"
 }
 
 get_commit_hash() {
@@ -23,7 +36,7 @@ get_commit_hash() {
 }
 
 VERSION=$(get_version)
-BUILD_NUMBER=$(get_build_number)
+BUILD_NUMBER=$(increment_build_number)
 COMMIT_HASH=$(get_commit_hash)
 
 echo "Building $APP_NAME v$VERSION ($BUILD_NUMBER) [$COMMIT_HASH]"
