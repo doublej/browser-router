@@ -19,75 +19,77 @@ struct RuleEditorView: View {
             header
                 .padding(.bottom, 28)
 
-            // Step 1: Match Type
-            SectionCard(step: 1, title: "Match Type", subtitle: "How should URLs be matched?") {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 10) {
-                        ForEach(MatchType.allCases, id: \.self) { type in
-                            MatchTypeChip(
-                                type: type,
-                                isSelected: matchType == type,
-                                onSelect: { matchType = type }
-                            )
+            GlassEffectContainer {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Step 1: Match Type
+                    SectionCard(step: 1, title: "Match Type", subtitle: "How should URLs be matched?") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(spacing: 10) {
+                                ForEach(MatchType.allCases, id: \.self) { type in
+                                    MatchTypeChip(
+                                        type: type,
+                                        isSelected: matchType == type,
+                                        onSelect: { matchType = type }
+                                    )
+                                }
+                            }
+
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary.opacity(0.7))
+                                Text(matchType.description)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
+                    .padding(.bottom, 16)
 
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary.opacity(0.7))
-                        Text(matchType.description)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                    // Step 2: Pattern
+                    SectionCard(step: 2, title: "Pattern", subtitle: "Enter the URL pattern to match") {
+                        patternField
                     }
+                    .padding(.bottom, 16)
+
+                    // Step 3: Browser
+                    SectionCard(step: 3, title: "Open With", subtitle: "Select the browser for matching URLs") {
+                        HStack(spacing: 12) {
+                            ForEach(Array(mainBrowsers.enumerated()), id: \.element.id) { index, browser in
+                                BrowserTile(
+                                    browser: browser,
+                                    shortcut: letterFor(index: index),
+                                    isSelected: selectedBrowserID == browser.id,
+                                    onSelect: { selectedBrowserID = browser.id }
+                                )
+                            }
+
+                            if !extraBrowsers.isEmpty {
+                                moreBrowsersMenu
+                            }
+                        }
+                    }
+                    .padding(.bottom, 20)
+
+                    // Options row
+                    HStack {
+                        Toggle(isOn: $enabled) {
+                            HStack(spacing: 6) {
+                                Image(systemName: enabled ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(enabled ? .green : .secondary)
+                                    .font(.system(size: 14))
+                                Text("Rule enabled")
+                                    .font(.system(size: 13))
+                            }
+                        }
+                        .toggleStyle(.button)
+                        .buttonStyle(.plain)
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 4)
                 }
             }
-            .padding(.bottom, 16)
-
-            // Step 2: Pattern
-            SectionCard(step: 2, title: "Pattern", subtitle: "Enter the URL pattern to match") {
-                patternField
-            }
-            .padding(.bottom, 16)
-
-            // Step 3: Browser
-            SectionCard(step: 3, title: "Open With", subtitle: "Select the browser for matching URLs") {
-                HStack(spacing: 12) {
-                    ForEach(Array(mainBrowsers.enumerated()), id: \.element.id) { index, browser in
-                        BrowserTile(
-                            browser: browser,
-                            shortcut: letterFor(index: index),
-                            isSelected: selectedBrowserID == browser.id,
-                            onSelect: { selectedBrowserID = browser.id }
-                        )
-                    }
-
-                    if !extraBrowsers.isEmpty {
-                        moreBrowsersMenu
-                    }
-                }
-            }
-            .padding(.bottom, 20)
-
-            // Options row
-            HStack {
-                Toggle(isOn: $enabled) {
-                    HStack(spacing: 6) {
-                        Image(systemName: enabled ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(enabled ? .green : .secondary)
-                            .font(.system(size: 14))
-                        Text("Rule enabled")
-                            .font(.system(size: 13))
-                    }
-                }
-                .toggleStyle(.button)
-                .buttonStyle(.plain)
-
-                Spacer()
-            }
-            .padding(.horizontal, 4)
-
-            Spacer()
 
             Divider()
                 .padding(.vertical, 16)
@@ -95,6 +97,7 @@ struct RuleEditorView: View {
             actionButtons
         }
         .padding(28)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear { loadRule() }
     }
 
@@ -158,14 +161,7 @@ struct RuleEditorView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .textBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
-        )
+        .glassEffect(.regular, in: .rect(cornerRadius: 10))
     }
 
     // MARK: - Browser Section
@@ -197,10 +193,6 @@ struct RuleEditorView: View {
         } label: {
             VStack(spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(extraBrowserSelected ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor).opacity(0.6))
-                        .frame(width: 56, height: 56)
-
                     if let selectedExtra = extraBrowsers.first(where: { $0.id == selectedBrowserID }),
                        let icon = selectedExtra.icon {
                         Image(nsImage: icon)
@@ -216,6 +208,8 @@ struct RuleEditorView: View {
                         .foregroundColor(.secondary)
                     }
                 }
+                .frame(width: 56, height: 56)
+                .background(extraBrowserSelected ? Color.accentColor.opacity(0.15) : Color.clear, in: .rect(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(extraBrowserSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: extraBrowserSelected ? 2 : 1)
@@ -334,14 +328,7 @@ struct SectionCard<Content: View>: View {
                 .padding(.leading, 36)
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
-        )
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
     }
 }
 
@@ -362,15 +349,9 @@ struct MatchTypeChip: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? Color.accentColor : Color(nsColor: .controlBackgroundColor))
-            )
             .foregroundColor(isSelected ? .white : .primary)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.clear : Color.secondary.opacity(0.15), lineWidth: 1)
-            )
+            .background(isSelected ? Color.accentColor : Color.clear, in: .rect(cornerRadius: 10))
+            .glassEffect(isSelected ? .clear : .regular, in: .rect(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
@@ -397,10 +378,6 @@ struct BrowserTile: View {
         Button(action: onSelect) {
             VStack(spacing: 8) {
                 ZStack(alignment: .bottomTrailing) {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? Color.accentColor.opacity(0.12) : Color(nsColor: .controlBackgroundColor).opacity(0.6))
-                        .frame(width: 56, height: 56)
-
                     if let icon = browser.icon {
                         Image(nsImage: icon)
                             .resizable()
@@ -412,12 +389,11 @@ struct BrowserTile: View {
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .frame(width: 16, height: 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.accentColor)
-                        )
+                        .background(Color.accentColor, in: .rect(cornerRadius: 4))
                         .offset(x: 6, y: 6)
                 }
+                .frame(width: 56, height: 56)
+                .background(isSelected ? Color.accentColor.opacity(0.15) : Color.clear, in: .rect(cornerRadius: 12))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(isSelected ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2 : 1)
