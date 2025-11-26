@@ -234,28 +234,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         if let rule = URLMatcher.findMatchingRule(url: url, rules: ruleStore.rules),
            let browser = browserDetector.browser(for: rule.browserID) {
-            openURL(url, in: browser)
-            notifyRouting(url: url, browser: browser)
+            let profile = rule.profileID.flatMap { browserDetector.profile(browserID: rule.browserID, profileID: $0) }
+            openURL(url, in: browser, profile: profile)
+            notifyRouting(url: url, browser: browser, profile: profile)
         } else if let defaultID = browserDetector.defaultBrowserID,
                   let browser = browserDetector.browser(for: defaultID) {
             openInSystemDefault(url)
-            notifyRouting(url: url, browser: browser)
+            notifyRouting(url: url, browser: browser, profile: nil)
         } else {
             openInSystemDefault(url)
         }
     }
 
-    private func notifyRouting(url: URL, browser: Browser) {
+    private func notifyRouting(url: URL, browser: Browser, profile: BrowserProfile?) {
         let settings = ruleStore.notificationSettings
+        let displayName = profile.map { "\(browser.name) (\($0.name))" } ?? browser.name
 
         if settings.trackRecent {
-            let route = RecentRoute(url: url.absoluteString, browserName: browser.name)
+            let route = RecentRoute(url: url.absoluteString, browserName: displayName)
             ruleStore.addRecentRoute(route)
             DispatchQueue.main.async { self.statusItem.menu = self.buildMenu() }
         }
 
         if settings.showBanner {
-            showNotificationBanner(url: url, browser: browser)
+            showNotificationBanner(url: url, browser: browser, profile: profile)
         }
 
         if settings.flashIcon {
@@ -267,11 +269,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    private func showNotificationBanner(url: URL, browser: Browser) {
+    private func showNotificationBanner(url: URL, browser: Browser, profile: BrowserProfile?) {
         let letter = browserLetter(for: browser)
         let content = UNMutableNotificationContent()
         content.title = "URL Routed [\(letter)]"
-        content.body = "\(url.host ?? url.absoluteString) → \(browser.name)"
+        let displayName = profile.map { "\(browser.name) (\($0.name))" } ?? browser.name
+        content.body = "\(url.host ?? url.absoluteString) → \(displayName)"
         content.sound = nil
 
         let request = UNNotificationRequest(
@@ -336,12 +339,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSSound(named: NSSound.Name(name))?.play()
     }
 
-    private func openURL(_ url: URL, in browser: Browser) {
-        NSWorkspace.shared.open(
-            [url],
-            withApplicationAt: browser.path,
-            configuration: NSWorkspace.OpenConfiguration()
-        ) { _, _ in }
+    private func openURL(_ url: URL, in browser: Browser, profile: BrowserProfile? = nil) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+
+        if let profile = profile {
+            process.arguments = buildProfileArgs(browser: browser, profile: profile, url: url)
+        } else {
+            process.arguments = ["-a", browser.path.path, url.absoluteString]
+        }
+
+        try? process.run()
+    }
+
+    private func buildProfileArgs(browser: Browser, profile: BrowserProfile, url: URL) -> [String] {
+        var args = ["-a", browser.path.path, url.absoluteString]
+
+        switch browser.id {
+        case "com.google.Chrome", "com.microsoft.edgemac", "com.brave.Browser", "com.vivaldi.Vivaldi":
+            args += ["--args", "--profile-directory=\(profile.directoryName)"]
+        case "org.mozilla.firefox":
+            args += ["--args", "-P", profile.name]
+        default:
+            break
+        }
+
+        return args
     }
 
     private func openInSystemDefault(_ url: URL) {
