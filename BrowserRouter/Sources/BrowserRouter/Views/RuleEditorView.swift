@@ -230,7 +230,7 @@ struct RuleEditorView: View {
                     .foregroundColor(.secondary)
             }
 
-            HStack(spacing: 8) {
+            FlowLayout(spacing: 8) {
                 ProfileChip(
                     name: "Default",
                     isSelected: selectedProfileID == nil,
@@ -245,6 +245,7 @@ struct RuleEditorView: View {
                     )
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -512,6 +513,50 @@ struct PatternSuffix: View {
     }
 }
 
+// MARK: - Flow Layout
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let containerWidth = proposal.width ?? .infinity
+        var currentX: CGFloat = 0
+        var currentY: CGFloat = 0
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX + size.width > containerWidth && currentX > 0 {
+                currentX = 0
+                currentY += lineHeight + spacing
+                lineHeight = 0
+            }
+            currentX += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+
+        return CGSize(width: containerWidth, height: currentY + lineHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var currentX: CGFloat = bounds.minX
+        var currentY: CGFloat = bounds.minY
+        var lineHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentX + size.width > bounds.maxX && currentX > bounds.minX {
+                currentX = bounds.minX
+                currentY += lineHeight + spacing
+                lineHeight = 0
+            }
+            subview.place(at: CGPoint(x: currentX, y: currentY), proposal: .unspecified)
+            currentX += size.width + spacing
+            lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
 // MARK: - Profile Chip
 
 struct ProfileChip: View {
@@ -521,13 +566,20 @@ struct ProfileChip: View {
 
     var body: some View {
         Button(action: onSelect) {
-            Text(name)
-                .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .foregroundColor(isSelected ? .white : .primary)
-                .background(isSelected ? Color.accentColor : Color.clear, in: .rect(cornerRadius: 8))
-                .glassEffect(isSelected ? .clear : .regular, in: .rect(cornerRadius: 8))
+            HStack(spacing: 4) {
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 12))
+                    .frame(width: 12, height: 12)
+                Text(name)
+                    .font(.system(size: 9, weight: .regular))
+                    .lineLimit(1)
+            }
+            .frame(minWidth: 60)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .foregroundColor(isSelected ? .white : .primary)
+            .background(isSelected ? Color.accentColor : Color.clear, in: .rect(cornerRadius: 8))
+            .glassEffect(isSelected ? .clear : .regular, in: .rect(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }

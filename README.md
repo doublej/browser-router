@@ -4,7 +4,17 @@
   <img src="BrowserRouter/Resources/AppIcon.svg" width="128" height="128" alt="Browser Router Icon">
 </p>
 
-A macOS menu bar app that routes URLs to different browsers and profiles based on custom rules.
+A macOS menu bar app that acts as your default browser and intelligently routes URLs to the right browser (and even the right profile) based on customizable rules.
+
+**The problem:** With so many new browsers featuring AI capabilities (Atlas, Dia, Comet, etc.), it's annoying when you're debugging and your AI-powered browser is set as default - every link opens there.
+
+**The solution:** Set Browser Router as your default browser. It intercepts all URL clicks and routes them based on rules you define:
+- Send `localhost:*` to Chrome with your DevTools profile
+- Route `github.com` to your work browser
+- Open `*.slack.com` in a specific browser/profile
+- Everything else goes to your favorite AI browser
+
+**Visual feedback:** When a URL is redirected, the menu bar icon briefly shows the destination browser's icon - so you always know where it went.
 
 ## Download
 
