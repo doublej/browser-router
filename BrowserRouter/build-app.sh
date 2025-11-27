@@ -50,6 +50,7 @@ mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 cp "$BUILD_DIR/BrowserRouter" "$APP_BUNDLE/Contents/MacOS/"
+cp "$RESOURCES_DIR/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/"
 
 # Inject version into Info.plist
 sed -e "s|<string>1.0.0</string>|<string>$VERSION</string>|" \
@@ -60,6 +61,12 @@ sed -e "s|<string>1.0.0</string>|<string>$VERSION</string>|" \
 cat > "$APP_BUNDLE/Contents/PkgInfo" << EOF
 APPL????
 EOF
+
+echo "Signing app bundle (ad-hoc)..."
+codesign --force --deep --sign - "$APP_BUNDLE"
+
+echo "Registering with Launch Services..."
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_BUNDLE"
 
 echo "App bundle created at: $APP_BUNDLE"
 echo "Version: $VERSION (build $BUILD_NUMBER)"

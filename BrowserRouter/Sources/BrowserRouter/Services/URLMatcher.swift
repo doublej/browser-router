@@ -3,6 +3,7 @@ import Foundation
 struct URLMatcher {
     static func matches(url: URL, rule: RoutingRule) -> Bool {
         guard rule.enabled else { return false }
+        guard matchPort(url: url, portRange: rule.portRange) else { return false }
 
         switch rule.matchType {
         case .contains:
@@ -14,6 +15,12 @@ struct URLMatcher {
         case .regex:
             return matchRegex(url: url, pattern: rule.pattern)
         }
+    }
+
+    private static func matchPort(url: URL, portRange: PortRange?) -> Bool {
+        guard let range = portRange else { return true }
+        let port = url.port ?? (url.scheme == "https" ? 443 : 80)
+        return range.contains(port)
     }
 
     private static func matchContains(url: URL, pattern: String) -> Bool {

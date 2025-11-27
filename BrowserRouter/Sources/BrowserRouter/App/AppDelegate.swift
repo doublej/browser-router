@@ -167,6 +167,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
 
+        // Capture current default browser before changing
+        let previousDefaultID = browserDetector.defaultBrowserID
+        let previousBrowser = previousDefaultID.flatMap { browserDetector.browser(for: $0) }
+
+        // If already Browser Router, nothing to do
+        if previousDefaultID == bundleID {
+            let alert = NSAlert()
+            alert.messageText = "Already Default"
+            alert.informativeText = "Browser Router is already your default browser."
+            alert.alertStyle = .informational
+            alert.runModal()
+            return
+        }
+
         let infoAlert = NSAlert()
         infoAlert.messageText = "Select Browser Router"
         infoAlert.informativeText = "A system dialog will appear. Choose \"Browser Router\" to enable URL routing."
@@ -175,39 +189,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard infoAlert.runModal() == .alertFirstButtonReturn else { return }
 
-        let httpResult = LSSetDefaultHandlerForURLScheme("http" as CFString, bundleID as CFString)
-        let httpsResult = LSSetDefaultHandlerForURLScheme("https" as CFString, bundleID as CFString)
-        
-        if httpResult != noErr || httpsResult != noErr {
-            let alert = NSAlert()
-            alert.messageText = "Registration Error"
-            alert.informativeText = "Failed to register as default browser. The app may need to be built and run from the Applications folder.\n\nError codes: HTTP=\(httpResult), HTTPS=\(httpsResult)"
-            alert.alertStyle = .warning
-            alert.runModal()
-            return
-        }
+        // Trigger the system default browser dialog
+        // On macOS 12+, this returns -54 while the system dialog is shown - not a real error
+        _ = LSSetDefaultHandlerForURLScheme("http" as CFString, bundleID as CFString)
+        _ = LSSetDefaultHandlerForURLScheme("https" as CFString, bundleID as CFString)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+        // Check result after user has time to respond to system dialog
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
             self?.browserDetector.refresh()
-            self?.showDefaultBrowserStatus(expectedID: bundleID)
+            self?.showDefaultBrowserStatus(expectedID: bundleID, previousBrowser: previousBrowser)
         }
     }
 
-    private func showDefaultBrowserStatus(expectedID: String) {
-        let alert = NSAlert()
-
+    private func showDefaultBrowserStatus(expectedID: String, previousBrowser: Browser? = nil) {
         if browserDetector.defaultBrowserID == expectedID {
-            alert.messageText = "Success"
-            alert.informativeText = "Browser Router is now your default browser."
-            alert.alertStyle = .informational
+            // Success - offer to set previous browser as fallback
+            if let browser = previousBrowser, ruleStore.fallbackBrowserID == nil {
+                let alert = NSAlert()
+                alert.messageText = "Set Default Route?"
+                alert.informativeText = "Browser Router is now your default browser.\n\nWould you like to route URLs to \(browser.name) when no rules match?"
+                alert.addButton(withTitle: "Yes, Use \(browser.name)")
+                alert.addButton(withTitle: "No Thanks")
+                alert.alertStyle = .informational
+
+                if alert.runModal() == .alertFirstButtonReturn {
+                    ruleStore.setFallbackBrowser(browser.id)
+                }
+            } else {
+                let alert = NSAlert()
+                alert.messageText = "Success"
+                alert.informativeText = "Browser Router is now your default browser."
+                alert.alertStyle = .informational
+                alert.runModal()
+            }
         } else {
             let currentBrowser = browserDetector.defaultBrowserID
                 .flatMap { browserDetector.browser(for: $0)?.name } ?? "Unknown"
+            let alert = NSAlert()
             alert.messageText = "Browser Router Not Selected"
             alert.informativeText = "Default browser is still \(currentBrowser).\n\nTry again and select \"Browser Router\" in the system dialog."
             alert.alertStyle = .warning
+            alert.runModal()
         }
-        alert.runModal()
     }
 
     private func registerURLHandler() {
@@ -237,9 +260,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let profile = rule.profileID.flatMap { browserDetector.profile(browserID: rule.browserID, profileID: $0) }
             openURL(url, in: browser, profile: profile)
             notifyRouting(url: url, browser: browser, profile: profile)
-        } else if let defaultID = browserDetector.defaultBrowserID,
-                  let browser = browserDetector.browser(for: defaultID) {
-            openInSystemDefault(url)
+        } else if let fallbackID = ruleStore.fallbackBrowserID,
+                  let browser = browserDetector.browser(for: fallbackID) {
+            openURL(url, in: browser, profile: nil)
             notifyRouting(url: url, browser: browser, profile: nil)
         } else {
             openInSystemDefault(url)

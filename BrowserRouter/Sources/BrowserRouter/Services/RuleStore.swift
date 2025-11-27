@@ -5,11 +5,13 @@ final class RuleStore: ObservableObject {
     @Published var routingEnabled: Bool = true
     @Published var notificationSettings = NotificationSettings()
     @Published var recentRoutes: [RecentRoute] = []
+    @Published var fallbackBrowserID: String?
 
     private let rulesKey = "BrowserRouter.rules"
     private let enabledKey = "BrowserRouter.enabled"
     private let notifKey = "BrowserRouter.notifications"
     private let recentKey = "BrowserRouter.recent"
+    private let fallbackKey = "BrowserRouter.fallbackBrowser"
 
     init() {
         load()
@@ -35,6 +37,8 @@ final class RuleStore: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: recentKey) {
             recentRoutes = (try? decoder.decode([RecentRoute].self, from: data)) ?? []
         }
+
+        fallbackBrowserID = UserDefaults.standard.string(forKey: fallbackKey)
     }
 
     func save() {
@@ -46,6 +50,16 @@ final class RuleStore: ObservableObject {
         if let data = try? encoder.encode(notificationSettings) {
             UserDefaults.standard.set(data, forKey: notifKey)
         }
+        if let fallbackID = fallbackBrowserID {
+            UserDefaults.standard.set(fallbackID, forKey: fallbackKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: fallbackKey)
+        }
+    }
+
+    func setFallbackBrowser(_ browserID: String?) {
+        fallbackBrowserID = browserID
+        save()
     }
 
     func addRecentRoute(_ route: RecentRoute) {

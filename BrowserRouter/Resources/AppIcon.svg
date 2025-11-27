@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Deep space gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#0f0f1a"/>
+    </linearGradient>
+
+    <!-- Flowing path gradients -->
+    <linearGradient id="pathA" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff6b6b" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#ff6b6b"/>
+      <stop offset="100%" stop-color="#ffa07a"/>
+    </linearGradient>
+
+    <linearGradient id="pathB" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#4ecdc4" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#4ecdc4"/>
+      <stop offset="100%" stop-color="#a8edea"/>
+    </linearGradient>
+
+    <linearGradient id="pathC" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#ffe66d" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#ffe66d"/>
+      <stop offset="100%" stop-color="#fff9c4"/>
+    </linearGradient>
+
+    <!-- Glow filters -->
+    <filter id="glowA" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="glowB" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Soft shadow -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="8" stdDeviation="20" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect x="32" y="32" width="448" height="448" rx="100" fill="url(#bg)" filter="url(#shadow)"/>
+
+  <!-- Subtle grid texture -->
+  <g opacity="0.03" stroke="white" stroke-width="1">
+    <line x1="32" y1="156" x2="480" y2="156"/>
+    <line x1="32" y1="256" x2="480" y2="256"/>
+    <line x1="32" y1="356" x2="480" y2="356"/>
+    <line x1="156" y1="32" x2="156" y2="480"/>
+    <line x1="256" y1="32" x2="256" y2="480"/>
+    <line x1="356" y1="32" x2="356" y2="480"/>
+  </g>
+
+  <!-- Abstract flowing paths - representing URL routing -->
+
+  <!-- Path A - curves left -->
+  <path
+    d="M 256 420
+       C 256 350, 256 320, 220 280
+       C 180 235, 120 200, 90 120"
+    fill="none"
+    stroke="url(#pathA)"
+    stroke-width="18"
+    stroke-linecap="round"
+    filter="url(#glowA)"
+  />
+
+  <!-- Path B - curves right -->
+  <path
+    d="M 256 420
+       C 256 350, 256 320, 292 280
+       C 332 235, 392 200, 422 120"
+    fill="none"
+    stroke="url(#pathB)"
+    stroke-width="18"
+    stroke-linecap="round"
+    filter="url(#glowA)"
+  />
+
+  <!-- Path C - goes up center -->
+  <path
+    d="M 256 420
+       C 256 340, 256 260, 256 120"
+    fill="none"
+    stroke="url(#pathC)"
+    stroke-width="18"
+    stroke-linecap="round"
+    filter="url(#glowA)"
+  />
+
+  <!-- Convergence point glow -->
+  <circle cx="256" cy="420" r="30" fill="#fff" opacity="0.15" filter="url(#glowB)"/>
+  <circle cx="256" cy="420" r="12" fill="white" opacity="0.9"/>
+
+  <!-- Destination orbs -->
+  <circle cx="90" cy="120" r="20" fill="#ff6b6b" filter="url(#glowB)"/>
+  <circle cx="90" cy="120" r="8" fill="white" opacity="0.8"/>
+
+  <circle cx="256" cy="120" r="20" fill="#ffe66d" filter="url(#glowB)"/>
+  <circle cx="256" cy="120" r="8" fill="white" opacity="0.8"/>
+
+  <circle cx="422" cy="120" r="20" fill="#4ecdc4" filter="url(#glowB)"/>
+  <circle cx="422" cy="120" r="8" fill="white" opacity="0.8"/>
+</svg>

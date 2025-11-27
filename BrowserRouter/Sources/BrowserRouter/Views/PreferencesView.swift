@@ -37,9 +37,11 @@ struct AboutView: View {
             Spacer()
 
             // App icon
-            Image(systemName: "arrow.triangle.branch")
-                .font(.system(size: 64, weight: .thin))
-                .foregroundColor(.accentColor)
+            if let appIcon = NSApp.applicationIconImage {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .frame(width: 128, height: 128)
+            }
 
             // App name and version
             VStack(spacing: 4) {
@@ -71,7 +73,7 @@ struct AboutView: View {
                 }
                 .buttonStyle(.link)
 
-                Text("Made by Jurrejan")
+                Text("Made by JJ")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }

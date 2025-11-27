@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BrowserListView: View {
     @EnvironmentObject var browserDetector: BrowserDetector
+    @EnvironmentObject var ruleStore: RuleStore
 
     var body: some View {
         VStack(spacing: 16) {
@@ -12,7 +13,10 @@ struct BrowserListView: View {
                             BrowserRowView(
                                 browser: browser,
                                 letter: letterFor(index: index),
-                                isDefault: browser.id == browserDetector.defaultBrowserID
+                                isSystemDefault: browser.id == browserDetector.defaultBrowserID,
+                                isFallback: browser.id == ruleStore.fallbackBrowserID,
+                                onSetFallback: { ruleStore.setFallbackBrowser(browser.id) },
+                                onClearFallback: { ruleStore.setFallbackBrowser(nil) }
                             )
                         }
                     }
@@ -45,7 +49,10 @@ struct BrowserListView: View {
 struct BrowserRowView: View {
     let browser: Browser
     let letter: String
-    let isDefault: Bool
+    let isSystemDefault: Bool
+    let isFallback: Bool
+    let onSetFallback: () -> Void
+    let onClearFallback: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -66,12 +73,20 @@ struct BrowserRowView: View {
                     Text(browser.name)
                         .font(.body)
 
-                    if isDefault {
+                    if isSystemDefault {
                         Text("System Default")
                             .font(.caption)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.accentColor.opacity(0.2), in: RoundedRectangle(cornerRadius: 4))
+                    }
+
+                    if isFallback {
+                        Text("Default Route")
+                            .font(.caption)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.2), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
 
@@ -81,6 +96,20 @@ struct BrowserRowView: View {
             }
 
             Spacer()
+
+            if isFallback {
+                Button("Clear") {
+                    onClearFallback()
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+            } else {
+                Button("Set as Default") {
+                    onSetFallback()
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.accentColor)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

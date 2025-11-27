@@ -10,6 +10,8 @@ struct RuleEditorView: View {
     @State private var pattern: String = ""
     @State private var matchType: MatchType = .domain
     @State private var selectedBrowserID: String = ""
+    @State private var selectedProfileID: String?
+    @State private var portRangeString: String = ""
     @State private var enabled: Bool = true
 
     private let maxVisibleBrowsers = 4
@@ -46,26 +48,59 @@ struct RuleEditorView: View {
                     }
                     .padding(.bottom, 16)
 
-                    // Step 2: Pattern
+                    // Step 2: Pattern + Port
                     SectionCard(step: 2, title: "Pattern", subtitle: "Enter the URL pattern to match") {
-                        patternField
+                        VStack(alignment: .leading, spacing: 12) {
+                            patternField
+
+                            HStack(spacing: 12) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "network")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Text("Port:")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+
+                                TextField("", text: $portRangeString, prompt: Text("any").foregroundColor(.secondary.opacity(0.4)))
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .frame(width: 100)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .glassEffect(.regular, in: .rect(cornerRadius: 6))
+
+                                Text("e.g. 3000 or 8000-8999")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary.opacity(0.6))
+
+                                Spacer()
+                            }
+                        }
                     }
                     .padding(.bottom, 16)
 
                     // Step 3: Browser
                     SectionCard(step: 3, title: "Open With", subtitle: "Select the browser for matching URLs") {
-                        HStack(spacing: 12) {
-                            ForEach(Array(mainBrowsers.enumerated()), id: \.element.id) { index, browser in
-                                BrowserTile(
-                                    browser: browser,
-                                    shortcut: letterFor(index: index),
-                                    isSelected: selectedBrowserID == browser.id,
-                                    onSelect: { selectedBrowserID = browser.id }
-                                )
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(spacing: 12) {
+                                ForEach(Array(mainBrowsers.enumerated()), id: \.element.id) { index, browser in
+                                    BrowserTile(
+                                        browser: browser,
+                                        shortcut: letterFor(index: index),
+                                        isSelected: selectedBrowserID == browser.id,
+                                        onSelect: { selectBrowser(browser.id) }
+                                    )
+                                }
+
+                                if !extraBrowsers.isEmpty {
+                                    moreBrowsersMenu
+                                }
                             }
 
-                            if !extraBrowsers.isEmpty {
-                                moreBrowsersMenu
+                            if let browser = selectedBrowser, browser.supportsProfiles {
+                                profileSelector(for: browser)
                             }
                         }
                     }
@@ -174,10 +209,49 @@ struct RuleEditorView: View {
         Array(browserDetector.browsers.dropFirst(maxVisibleBrowsers))
     }
 
+    private var selectedBrowser: Browser? {
+        browserDetector.browser(for: selectedBrowserID)
+    }
+
+    private func selectBrowser(_ id: String) {
+        selectedBrowserID = id
+        selectedProfileID = nil
+    }
+
+    @ViewBuilder
+    private func profileSelector(for browser: Browser) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text("Profile:")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 8) {
+                ProfileChip(
+                    name: "Default",
+                    isSelected: selectedProfileID == nil,
+                    onSelect: { selectedProfileID = nil }
+                )
+
+                ForEach(browser.profiles) { profile in
+                    ProfileChip(
+                        name: profile.name,
+                        isSelected: selectedProfileID == profile.id,
+                        onSelect: { selectedProfileID = profile.id }
+                    )
+                }
+            }
+        }
+    }
+
     private var moreBrowsersMenu: some View {
         Menu {
             ForEach(Array(extraBrowsers.enumerated()), id: \.element.id) { _, browser in
-                Button(action: { selectedBrowserID = browser.id }) {
+                Button(action: { selectBrowser(browser.id) }) {
                     HStack {
                         if let icon = browser.icon {
                             Image(nsImage: icon)
@@ -270,6 +344,8 @@ struct RuleEditorView: View {
             pattern = rule.pattern
             matchType = rule.matchType
             selectedBrowserID = rule.browserID
+            selectedProfileID = rule.profileID
+            portRangeString = rule.portRange?.displayString ?? ""
             enabled = rule.enabled
         } else {
             selectedBrowserID = browserDetector.browsers.first?.id ?? ""
@@ -282,6 +358,8 @@ struct RuleEditorView: View {
             pattern: pattern,
             matchType: matchType,
             browserID: selectedBrowserID,
+            profileID: selectedProfileID,
+            portRange: PortRange.parse(portRangeString),
             enabled: enabled,
             priority: rule?.priority ?? 0
         )
@@ -431,5 +509,26 @@ struct PatternSuffix: View {
         Text(text)
             .font(.system(size: 13, design: .monospaced))
             .foregroundColor(.secondary.opacity(0.5))
+    }
+}
+
+// MARK: - Profile Chip
+
+struct ProfileChip: View {
+    let name: String
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            Text(name)
+                .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .foregroundColor(isSelected ? .white : .primary)
+                .background(isSelected ? Color.accentColor : Color.clear, in: .rect(cornerRadius: 8))
+                .glassEffect(isSelected ? .clear : .regular, in: .rect(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
     }
 }
