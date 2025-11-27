@@ -30,6 +30,18 @@ Or see all releases on the [Releases page](https://github.com/doublej/browser-ro
 - **Notifications** — Optional banner, sound, and menu bar icon flash on routing
 - **Recent history** — Track recently routed URLs in the menu bar
 
+### Screenshots
+
+<p align="center">
+  <img src="browsers.png" width="500" alt="Browsers tab showing detected browsers">
+  <br><em>Browsers tab - Auto-detects installed browsers and set default route</em>
+</p>
+
+<p align="center">
+  <img src="rule.png" width="500" alt="Rule editor interface">
+  <br><em>Rule editor - Configure match type, pattern, browser and profile</em>
+</p>
+
 ### Setup
 
 1. Launch Browser Router from Applications
